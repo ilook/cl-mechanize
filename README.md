@@ -1,3 +1,5 @@
+ forked from joachifm/cl-mechanize
+
 # About
 CL-MECHANIZE is a [WWW::Mechanize] work-alike for Common Lisp
 implemented as a thin wrapper on top of [Drakma].
