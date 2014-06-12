@@ -110,11 +110,12 @@ Setting to :SESSION does not store any cookies.")
            (type browser browser)
            (type keyword method)
            (type list parameters))
-  (multiple-value-bind (body status)
+  (multiple-value-bind (body status headers ret-uri)
       (drakma:http-request uri
                            :user-agent (browser-user-agent browser)
                            :method method
-                           :parameters parameters)
+                           :parameters parameters
+                           :cookie-jar (browser-cookie-jar browser))
     (let ((dom (chtml:parse body (stp:make-builder)))
           (links nil)
           (forms nil))
@@ -133,7 +134,7 @@ Setting to :SESSION does not store any cookies.")
                                       :action (stp:attribute-value n "action"))
                        forms)))))
       (let ((page (make-instance 'page
-                                 :uri uri
+                                 :uri (puri:render-uri  ret-uri nil)
                                  :links (nreverse links)
                                  :forms (nreverse forms)
                                  :dom dom
