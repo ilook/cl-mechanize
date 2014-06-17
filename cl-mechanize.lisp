@@ -104,55 +104,62 @@ Setting to :SESSION does not store any cookies.")
     :accessor page-content))
   (:documentation "Contains the result of fetching a page."))
 
-(defun fetch (uri browser &key (method :get) parameters)
+(defun fetch (uri browser &key (method :get) parameters (want-stream nil))
   "Send a request and fetch the response."
   (declare (type (or string puri:uri) uri)
            (type browser browser)
            (type keyword method)
            (type list parameters))
-  (multiple-value-bind (body status headers ret-uri)
+  (if want-stream
       (drakma:http-request uri
                            :user-agent (browser-user-agent browser)
                            :method method
                            :parameters parameters
-                           :cookie-jar (browser-cookie-jar browser))
-    (let ((dom (chtml:parse body (stp:make-builder)))
-          (links nil)
-          (forms nil))
-      (stp:do-recursively (n dom)
-        (when (typep n 'stp:element)
-          (cond ((equal (stp:local-name n) "a")
-                 (push (make-instance 'link
-                                      :text (stp:string-value n)
-                                      :uri (puri:parse-uri (stp:attribute-value n "href"))
-                                      :url (stp:attribute-value n "href")
-                                      :tag :a)
-                       links))
-                ((equal (stp:local-name n) "form")
-                 (let ((paras nil))
-		               (stp:do-recursively (child n)
-		                 (when (and (typep child 'stp:element)
-				                        (equalp (stp:local-name child) "input")
-				                        (stp:attribute-value child "name")) 
-		                    (push (cons (stp:attribute-value child "name") 
-				                            (or (stp:attribute-value child "value") ""))
-			                        paras)))
-                  (push (make-instance 'form
-                                        :name (stp:attribute-value n "name")
-                                        :action (stp:attribute-value n "action")
-                                        :method (intern (stp:attribute-value n "method") :keyword)
-					                              :inputs paras)
-                       forms))))))
-      (let ((page (make-instance 'page
-                                 :uri (puri:render-uri  ret-uri nil)
-                                 :links (nreverse links)
-                                 :forms (nreverse forms)
-                                 :dom dom
-                                 :content body)))
-        (setf (browser-page browser) page
-              (browser-status browser) status)
-        (push page (browser-history browser))
-        page))))
+			   :cookie-jar (browser-cookie-jar browser)
+			   :want-stream t)
+      (multiple-value-bind (body status headers ret-uri)
+	  (drakma:http-request uri
+			       :user-agent (browser-user-agent browser)
+			       :method method
+			       :parameters parameters
+			       :cookie-jar (browser-cookie-jar browser))
+	(let ((dom (chtml:parse body (stp:make-builder)))
+	      (links nil)
+	      (forms nil))
+	  (stp:do-recursively (n dom)
+	    (when (typep n 'stp:element)
+	      (cond ((equal (stp:local-name n) "a")
+		     (push (make-instance 'link
+					  :text (stp:string-value n)
+					  :uri (puri:parse-uri (stp:attribute-value n "href"))
+					  :url (stp:attribute-value n "href")
+					  :tag :a)
+			   links))
+		    ((equal (stp:local-name n) "form")
+		     (let ((paras nil))
+		       (stp:do-recursively (child n)
+			 (when (and (typep child 'stp:element)
+				    (equalp (stp:local-name child) "input")
+				    (stp:attribute-value child "name")) 
+			   (push (cons (stp:attribute-value child "name") 
+				       (or (stp:attribute-value child "value") ""))
+				 paras)))
+		       (push (make-instance 'form
+					    :name (stp:attribute-value n "name")
+					    :action (stp:attribute-value n "action")
+					    :method (intern (stp:attribute-value n "method") :keyword)
+					    :inputs paras)
+			     forms))))))
+	  (let ((page (make-instance 'page
+				     :uri (puri:render-uri  ret-uri nil)
+				     :links (nreverse links)
+				     :forms (nreverse forms)
+				     :dom dom
+				     :content body)))
+	    (setf (browser-page browser) page
+		  (browser-status browser) status)
+	    (push page (browser-history browser))
+	    page)))))
 
 (defun submit (form browser)
   "Submit a form on the current page."
