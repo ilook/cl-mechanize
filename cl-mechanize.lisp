@@ -104,7 +104,7 @@ Setting to :SESSION does not store any cookies.")
     :accessor page-content))
   (:documentation "Contains the result of fetching a page."))
 
-(defun fetch (uri browser &key (method :get) parameters (want-stream nil))
+(defun fetch (uri browser &key (method :get) parameters (content nil) (want-stream nil))
   "Send a request and fetch the response."
   (declare (type (or string puri:uri) uri)
            (type browser browser)
@@ -115,6 +115,7 @@ Setting to :SESSION does not store any cookies.")
                            :user-agent (browser-user-agent browser)
                            :method method
                            :parameters parameters
+                           :content content
 			   :cookie-jar (browser-cookie-jar browser)
 			   :want-stream t)
       (multiple-value-bind (body status headers ret-uri)
@@ -122,6 +123,7 @@ Setting to :SESSION does not store any cookies.")
 			       :user-agent (browser-user-agent browser)
 			       :method method
 			       :parameters parameters
+			       :content content
 			       :cookie-jar (browser-cookie-jar browser))
 	(let ((dom (chtml:parse body (stp:make-builder)))
 	      (links nil)
